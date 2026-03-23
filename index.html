@@ -1,8 +1,8 @@
 diff --git a/index.html b/index.html
-index 4530d4fa93ce5e2af57f6ac67ef8e21f0e5d1308..b2d82bef122a11bca89338a9677b81f637cb3598 100644
+index 4530d4fa93ce5e2af57f6ac67ef8e21f0e5d1308..1d4cc200bb77b699b809c4b256ab49d657d68162 100644
 --- a/index.html
 +++ b/index.html
-@@ -1,28 +1,140 @@
+@@ -1,28 +1,154 @@
  <!doctype html>
 -<html lang="en">
 +<html lang="it">
@@ -27,8 +27,9 @@ index 4530d4fa93ce5e2af57f6ac67ef8e21f0e5d1308..b2d82bef122a11bca89338a9677b81f6
 +    <main class="app-shell">
 +      <header class="topbar">
 +        <div>
++          <p class="kicker">Prezzo intelligente, spesa consapevole</p>
 +          <h1>🛒 PrezzoSmart</h1>
-+          <p class="subtitle">Confronta supermercati, aggiorna prezzi e gestisci la tua spesa.</p>
++          <p class="subtitle">Confronta supermercati, aggiorna prezzi e gestisci la tua spesa in tempo reale.</p>
 +        </div>
 +        <div class="user-badge">
 +          <span id="sessionState">Utente non autenticato</span>
@@ -72,57 +73,49 @@ index 4530d4fa93ce5e2af57f6ac67ef8e21f0e5d1308..b2d82bef122a11bca89338a9677b81f6
 -      <p id="message" class="message">Click two cards to find a pair.</p>
 -      <section id="gameBoard" class="board"></section>
 +      <section id="appSection" class="hidden">
-+        <div class="grid-2">
-+          <section class="panel">
-+            <div class="panel-head">
-+              <h2>Prezzi in tempo reale (simulati)</h2>
-+              <div class="inline-controls">
-+                <select id="marketFilter"></select>
-+                <input id="searchInput" type="search" placeholder="Cerca prodotto..." />
++        <nav class="tabs panel">
++          <button class="tab-btn active" data-tab="dashboardTab">Dashboard prezzi</button>
++          <button class="tab-btn" data-tab="shoppingTab">Lista spesa</button>
++          <button class="tab-btn" data-tab="mapTab">Mappa</button>
++          <button id="adminTabBtn" class="tab-btn hidden" data-tab="adminTab">Admin import</button>
++        </nav>
++
++        <section id="dashboardTab" class="tab-panel active">
++          <div class="grid-2">
++            <section class="panel">
++              <div class="panel-head">
++                <h2>Prezzi in tempo reale (simulati)</h2>
++                <div class="inline-controls">
++                  <select id="marketFilter"></select>
++                  <input id="searchInput" type="search" placeholder="Cerca prodotto..." />
++                </div>
 +              </div>
-+            </div>
-+            <small class="muted">I prezzi cambiano automaticamente ogni 8 secondi (mock realtime).</small>
-+            <div id="productsContainer" class="products-list"></div>
-+          </section>
++              <small class="muted">I prezzi cambiano automaticamente ogni 8 secondi (mock realtime).</small>
++              <div id="productsContainer" class="products-list"></div>
++            </section>
 +
-+          <section class="panel">
-+            <h2>Aggiungi / upload prezzi</h2>
-+            <form id="priceForm" class="stacked-form compact">
-+              <label>Supermercato
-+                <select id="priceMarket" required></select>
-+              </label>
-+              <label>Prodotto
-+                <input id="priceProduct" type="text" placeholder="es. Pasta 500g" required />
-+              </label>
-+              <label>Prezzo (€)
-+                <input id="priceValue" type="number" min="0.01" step="0.01" required />
-+              </label>
-+              <button class="btn">Salva prezzo</button>
-+            </form>
-+            <p id="uploadMessage" class="info"></p>
-+            <h3>Ultimi contributi utenti</h3>
-+            <ul id="contribList" class="contrib-list"></ul>
-+          </section>
-+        </div>
-+
-+        <section id="adminSection" class="panel hidden">
-+          <h2>Area admin · Import massivo prezzi</h2>
-+          <p class="muted">
-+            Importa CSV/Excel con colonne: <strong>supermarket_id</strong>, <strong>product</strong>, <strong>price</strong>.
-+          </p>
-+          <form id="bulkImportForm" class="inline-form bulk-form">
-+            <select id="bulkMode">
-+              <option value="upsert">Aggiorna / aggiungi</option>
-+              <option value="replace">Sostituisci mercato selezionato</option>
-+            </select>
-+            <select id="bulkMarket"></select>
-+            <input id="bulkFile" type="file" accept=".csv,.xlsx,.xls" required />
-+            <button class="btn" type="submit">Importa file</button>
-+          </form>
-+          <p id="bulkMessage" class="info"></p>
++            <section class="panel">
++              <h2>Aggiungi / upload prezzi</h2>
++              <form id="priceForm" class="stacked-form compact">
++                <label>Supermercato
++                  <select id="priceMarket" required></select>
++                </label>
++                <label>Prodotto
++                  <input id="priceProduct" type="text" placeholder="es. Pasta 500g" required />
++                </label>
++                <label>Prezzo (€)
++                  <input id="priceValue" type="number" min="0.01" step="0.01" required />
++                </label>
++                <button class="btn">Salva prezzo</button>
++              </form>
++              <p id="uploadMessage" class="info"></p>
++              <h3>Ultimi contributi utenti</h3>
++              <ul id="contribList" class="contrib-list"></ul>
++            </section>
++          </div>
 +        </section>
 +
-+        <div class="grid-2">
++        <section id="shoppingTab" class="tab-panel">
 +          <section class="panel">
 +            <div class="panel-head">
 +              <h2>Lista della spesa personale</h2>
@@ -136,13 +129,34 @@ index 4530d4fa93ce5e2af57f6ac67ef8e21f0e5d1308..b2d82bef122a11bca89338a9677b81f6
 +            <ul id="shoppingList" class="shopping-list"></ul>
 +            <p class="total">Totale nel supermercato selezionato: <strong id="listTotal">€0.00</strong></p>
 +          </section>
++        </section>
 +
++        <section id="mapTab" class="tab-panel">
 +          <section class="panel">
 +            <h2>Mappa supermercati</h2>
 +            <p id="mapSummary" class="info"></p>
 +            <div id="map" class="map"></div>
 +          </section>
-+        </div>
++        </section>
++
++        <section id="adminTab" class="tab-panel">
++          <section id="adminSection" class="panel hidden">
++            <h2>Area admin · Import massivo prezzi</h2>
++            <p class="muted">
++              Importa CSV/Excel con colonne: <strong>supermarket_id</strong>, <strong>product</strong>, <strong>price</strong>.
++            </p>
++            <form id="bulkImportForm" class="inline-form bulk-form">
++              <select id="bulkMode">
++                <option value="upsert">Aggiorna / aggiungi</option>
++                <option value="replace">Sostituisci mercato selezionato</option>
++              </select>
++              <select id="bulkMarket"></select>
++              <input id="bulkFile" type="file" accept=".csv,.xlsx,.xls" required />
++              <button class="btn" type="submit">Importa file</button>
++            </form>
++            <p id="bulkMessage" class="info"></p>
++          </section>
++        </section>
 +      </section>
      </main>
  

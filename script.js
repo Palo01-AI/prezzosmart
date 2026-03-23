@@ -1,8 +1,8 @@
 diff --git a/script.js b/script.js
-index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a16b2e68af 100644
+index 4240c59edee33ff2288fac15d320beaddd0d313e..5db56f5a346f2629cc7a596405583569aaa2e333 100644
 --- a/script.js
 +++ b/script.js
-@@ -1,130 +1,548 @@
+@@ -1,130 +1,568 @@
 -// Simple Memory Match game (vanilla JS)
 -const symbols = ["🍎","🚀","🎲","🐱","⚽","🎧"];
 +const DB_KEY = "prezzo_smart_db_v1";
@@ -19,6 +19,7 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  authSection: document.getElementById("authSection"),
 +  appSection: document.getElementById("appSection"),
 +  adminSection: document.getElementById("adminSection"),
++  adminTabBtn: document.getElementById("adminTabBtn"),
 +  sessionState: document.getElementById("sessionState"),
 +  logoutBtn: document.getElementById("logoutBtn"),
 +  authMessage: document.getElementById("authMessage"),
@@ -44,7 +45,9 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  bulkMode: document.getElementById("bulkMode"),
 +  bulkMarket: document.getElementById("bulkMarket"),
 +  bulkFile: document.getElementById("bulkFile"),
-+  bulkMessage: document.getElementById("bulkMessage")
++  bulkMessage: document.getElementById("bulkMessage"),
++  tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
++  tabPanels: Array.from(document.querySelectorAll(".tab-panel"))
 +};
  
  let state = {
@@ -179,9 +182,13 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    el.priceMarket.insertAdjacentHTML("beforeend", `<option value="${market.id}">${market.name}</option>`);
 +    el.listMarket.insertAdjacentHTML("beforeend", `<option value="${market.id}">${market.name}</option>`);
 +    el.bulkMarket.insertAdjacentHTML("beforeend", `<option value="${market.id}">${market.name}</option>`);
-+  });
-+}
-+
+   });
+ }
+ 
+-function updateStats() {
+-  movesEl.textContent = String(state.moves);
+-  scoreEl.textContent = String(state.score);
+-  matchesEl.textContent = String(state.matches);
 +function productRows() {
 +  const selectedMarket = el.marketFilter.value || "all";
 +  const query = (el.searchInput.value || "").trim().toLowerCase();
@@ -197,11 +204,13 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +        rows.push({ market: market.name, product, price });
 +      }
 +    });
-   });
++  });
 +
 +  return rows.sort((a, b) => a.product.localeCompare(b.product));
-+}
-+
+ }
+ 
+-function cardButton(id) {
+-  return boardEl.querySelector(`.card[data-id="${id}"]`);
 +function renderProducts() {
 +  const rows = productRows();
 +  if (!rows.length) {
@@ -222,8 +231,12 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    `
 +    )
 +    .join("");
-+}
-+
+ }
+ 
+-function reveal(card) {
+-  const el = cardButton(card.id);
+-  el.classList.add("revealed");
+-  el.textContent = card.symbol;
 +function renderContributions() {
 +  const contributions = state.db.contributions.slice(-8).reverse();
 +  if (!contributions.length) {
@@ -238,16 +251,18 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    .join("");
  }
  
--function updateStats() {
--  movesEl.textContent = String(state.moves);
--  scoreEl.textContent = String(state.score);
--  matchesEl.textContent = String(state.matches);
+-function hide(card) {
+-  const el = cardButton(card.id);
+-  el.classList.remove("revealed");
+-  el.textContent = "?";
 +function marketPriceForProduct(marketId, product) {
 +  return state.db.prices[marketId]?.[product] || null;
  }
  
--function cardButton(id) {
--  return boardEl.querySelector(`.card[data-id="${id}"]`);
+-function markMatched(card) {
+-  const el = cardButton(card.id);
+-  el.classList.add("matched");
+-  el.disabled = true;
 +function renderShoppingList() {
 +  const list = getCurrentList();
 +  const marketId = el.listMarket.value;
@@ -286,10 +301,11 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  });
  }
  
--function reveal(card) {
--  const el = cardButton(card.id);
--  el.classList.add("revealed");
--  el.textContent = card.symbol;
+-function onCardClick(id) {
+-  if (state.lock) return;
+-  const card = state.deck.find(c => c.id === id);
+-  if (!card || card.matched) return;
+-  if (state.first && state.first.id === card.id) return;
 +function averageMarketBasket(marketId) {
 +  const list = getCurrentList();
 +  if (!list.length) return 0;
@@ -297,12 +313,9 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    const unit = marketPriceForProduct(marketId, item.product) || 0;
 +    return sum + unit * item.qty;
 +  }, 0);
- }
++}
  
--function hide(card) {
--  const el = cardButton(card.id);
--  el.classList.remove("revealed");
--  el.textContent = "?";
+-  reveal(card);
 +function distanceKm(lat1, lon1, lat2, lon2) {
 +  const toRad = (d) => (d * Math.PI) / 180;
 +  const R = 6371;
@@ -312,12 +325,8 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
 +    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 +  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
- }
- 
--function markMatched(card) {
--  const el = cardButton(card.id);
--  el.classList.add("matched");
--  el.disabled = true;
++}
++
 +function renderMapSummary(userLat = 41.9028, userLon = 12.4964) {
 +  const marketWithMetrics = state.db.supermarkets.map((m) => ({
 +    ...m,
@@ -331,13 +340,8 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  el.mapSummary.textContent = `Più vicino: ${nearest.name} (${nearest.distance.toFixed(
 +    2
 +  )} km) · Più economico per la tua lista: ${cheapest.name} (${euros(cheapest.basket)})`;
- }
- 
--function onCardClick(id) {
--  if (state.lock) return;
--  const card = state.deck.find(c => c.id === id);
--  if (!card || card.matched) return;
--  if (state.first && state.first.id === card.id) return;
++}
++
 +function setupMap() {
 +  if (state.map) return;
 +
@@ -346,15 +350,12 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    maxZoom: 19,
 +    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 +  }).addTo(state.map);
- 
--  reveal(card);
++
 +  state.userMarker = L.marker([41.9028, 12.4964]).addTo(state.map).bindPopup("La tua posizione (default Roma)");
 +  state.marketMarkers = state.db.supermarkets.map((market) =>
 +    L.marker([market.lat, market.lon]).addTo(state.map).bindPopup(`<strong>${market.name}</strong>`)
 +  );
- 
--  if (!state.first) {
--    state.first = card;
++
 +  if (navigator.geolocation) {
 +    navigator.geolocation.getCurrentPosition(
 +      (position) => {
@@ -369,7 +370,9 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    renderMapSummary();
 +  }
 +}
-+
+ 
+-  if (!state.first) {
+-    state.first = card;
 +function realtimeSimulation() {
 +  window.setInterval(() => {
 +    state.db.supermarkets.forEach((market) => {
@@ -415,30 +418,15 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +
 +  if (!user || user.passwordHash !== hashPassword(password)) {
 +    el.authMessage.textContent = "Credenziali non valide.";
-     return;
-   }
++    return;
++  }
 +  state.session = { userId: user.id };
 +  saveSession();
 +  el.authMessage.textContent = "";
 +  el.loginForm.reset();
 +  render();
 +}
- 
--  state.second = card;
--  state.moves++;
--  state.lock = true;
--
--  if (state.first.symbol === state.second.symbol) {
--    state.first.matched = true;
--    state.second.matched = true;
--    markMatched(state.first);
--    markMatched(state.second);
--    state.matches++;
--    state.score += 10;
--    endTurn();
--    if (state.matches === symbols.length) {
--      messageEl.textContent = `You won! Score: ${state.score} in ${state.moves} moves.`;
--      state.lock = true;
++
 +function onLogout() {
 +  state.session = null;
 +  saveSession();
@@ -508,9 +496,24 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  const user = getCurrentUser();
 +  if (!user?.isAdmin) {
 +    el.bulkMessage.textContent = "Import non consentito: solo admin.";
-+    return;
-+  }
-+
+     return;
+   }
+ 
+-  state.second = card;
+-  state.moves++;
+-  state.lock = true;
+-
+-  if (state.first.symbol === state.second.symbol) {
+-    state.first.matched = true;
+-    state.second.matched = true;
+-    markMatched(state.first);
+-    markMatched(state.second);
+-    state.matches++;
+-    state.score += 10;
+-    endTurn();
+-    if (state.matches === symbols.length) {
+-      messageEl.textContent = `You won! Score: ${state.score} in ${state.moves} moves.`;
+-      state.lock = true;
 +  const file = el.bulkFile.files?.[0];
 +  if (!file) return;
 +
@@ -528,12 +531,12 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +      const ws = wb.Sheets[wb.SheetNames[0]];
 +      rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
 +      rows = rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [String(k).toLowerCase(), String(v)])));
-+    }
+     }
+-    updateStats();
 +
 +    if (mode === "replace") {
 +      state.db.prices[selectedMarket] = {};
-     }
--    updateStats();
++    }
 +
 +    let imported = 0;
 +    rows.forEach((raw) => {
@@ -607,17 +610,31 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +    el.authSection.classList.add("hidden");
 +    el.appSection.classList.remove("hidden");
 +    el.adminSection.classList.toggle("hidden", !user.isAdmin);
++    el.adminTabBtn.classList.toggle("hidden", !user.isAdmin);
 +  } else {
 +    el.sessionState.textContent = "Utente non autenticato";
 +    el.logoutBtn.classList.add("hidden");
 +    el.authSection.classList.remove("hidden");
 +    el.appSection.classList.add("hidden");
 +    el.adminSection.classList.add("hidden");
++    el.adminTabBtn.classList.add("hidden");
 +  }
- }
- 
--restartBtn.addEventListener("click", setupGame);
--setupGame();
++}
++
++function switchTab(targetId) {
++  el.tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === targetId));
++  el.tabPanels.forEach((panel) => panel.classList.toggle("active", panel.id === targetId));
++  if (targetId === "mapTab") {
++    window.setTimeout(() => state.map?.invalidateSize(), 120);
++  }
++}
++
++function initTabs() {
++  el.tabButtons.forEach((btn) => {
++    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
++  });
++}
++
 +function render() {
 +  renderSession();
 +  if (!getCurrentUser()) return;
@@ -627,8 +644,10 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +  renderShoppingList();
 +  setupMap();
 +  renderMapSummary();
-+}
-+
+ }
+ 
+-restartBtn.addEventListener("click", setupGame);
+-setupGame();
 +el.registerForm.addEventListener("submit", onRegister);
 +el.loginForm.addEventListener("submit", onLogin);
 +el.logoutBtn.addEventListener("click", onLogout);
@@ -643,5 +662,6 @@ index 4240c59edee33ff2288fac15d320beaddd0d313e..c07ab6d791ba1ec57679e532ff2bd6a1
 +});
 +
 +loadState();
++initTabs();
 +render();
 +realtimeSimulation();
